@@ -1,0 +1,24 @@
+# Ignore heavy files
+*.keras
+*.h5
+*.mp4
+*.avi
+*.mov
+*.zip
+*.rar
+*.pkl
+*.onnx
+*.npy
+*.pt
+*.tflite
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Node modules in frontend
+SignTranslator/node_modules/
+
+# Virtual env
+venv/
+env/
