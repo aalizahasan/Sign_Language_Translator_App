@@ -1,28 +1,34 @@
 import os
 import json
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.utils import to_categorical
 
 # -------------------------
-# Paths
+# 1. Setup Paths
 # -------------------------
 FEATURES_PATH = "datasets/features"
 MODEL_PATH = "sign_model.keras"
 LABELS_PATH = "labels.json"
 
 # -------------------------
-# Load Features
+# 2. Load Features
 # -------------------------
 X = []
 y = []
 labels = {}
 label_index = 0
 
+print("Loading data...")
+
 for file in os.listdir(FEATURES_PATH):
     if file.endswith(".npy"):
+        # Extract label from filename (e.g., "sorry_video1.npy" -> "sorry")
         label = file.split("_")[0]
 
         if label not in labels:
@@ -34,38 +40,45 @@ for file in os.listdir(FEATURES_PATH):
         if data.size == 0:
             continue
 
-        # Average over temporal dimension if present
+        # Average over frames to get shape (1662,)
+        # Note: If your feature extractor changed, this shape might be slightly different.
+        # We auto-detect shape below.
         X.append(np.mean(data, axis=0))
         y.append(labels[label])
 
 X = np.array(X)
-y = np.array(y)
+y_original = np.array(y) # Keep original integers for charts
+y = to_categorical(y_original) # One-hot encode for training
 
-print("Feature shape:", X.shape)
+print(f"Feature shape: {X.shape}")
+print(f"Classes: {labels}")
+print(f"Total samples: {len(X)}")
 
-EXPECTED_FEATURES = 1629  # holistic: pose+face+lh+rh
-
-if X.shape[1] != EXPECTED_FEATURES:
-    print("⚠️ WARNING: Feature size mismatch!")
-    print("Expected:", EXPECTED_FEATURES)
-    print("Found:", X.shape[1])
-
-
-print("Classes:", labels)
-print("Total samples:", len(X))
-
-# One-hot encoding
-y = to_categorical(y)
+if len(X) < 10:
+    print("⚠️ CRITICAL WARNING: You have very little data! Record more videos.")
 
 # -------------------------
-# Train/Test Split
+# 3. REPORT: Data Distribution Chart
+# -------------------------
+# This generates the first graph for your report
+unique, counts = np.unique(y_original, return_counts=True)
+plt.figure(figsize=(8, 5))
+plt.bar(list(labels.keys()), counts, color=['blue', 'orange', 'green'])
+plt.title("Dataset Distribution")
+plt.xlabel("Signs")
+plt.ylabel("Number of Videos")
+plt.savefig("dataset_chart.png")
+print("✅ Saved 'dataset_chart.png' for your report.")
+
+# -------------------------
+# 4. Train/Test Split
 # -------------------------
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
 # -------------------------
-# Model
+# 5. Build Model
 # -------------------------
 model = Sequential([
     Dense(512, activation="relu", input_shape=(X.shape[1],)),
@@ -85,9 +98,10 @@ model.compile(
 model.summary()
 
 # -------------------------
-# Train
+# 6. Train Model
 # -------------------------
-model.fit(
+print("\nStarting Training...")
+history = model.fit(
     X_train, y_train,
     validation_data=(X_test, y_test),
     epochs=80,
@@ -95,7 +109,36 @@ model.fit(
 )
 
 # -------------------------
-# Save Model & Labels
+# 7. REPORT: Evaluation Metrics
+# -------------------------
+print("\nGenerating Evaluation Report...")
+
+# Predict on Test Data
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+y_true = np.argmax(y_test, axis=1)
+
+# Print Report
+print("\nClassification Report:")
+print(classification_report(y_true, y_pred_classes, target_names=list(labels.keys())))
+
+# Generate Confusion Matrix Image
+try:
+    cm = confusion_matrix(y_true, y_pred_classes)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                xticklabels=list(labels.keys()), 
+                yticklabels=list(labels.keys()))
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+    plt.savefig('confusion_matrix.png')
+    print("✅ Saved 'confusion_matrix.png' for your report.")
+except Exception as e:
+    print(f"Could not save confusion matrix (Needs more test data): {e}")
+
+# -------------------------
+# 8. Save Model
 # -------------------------
 model.save(MODEL_PATH)
 print(f"✅ Model saved as {MODEL_PATH}")
