@@ -140,3 +140,7 @@ const styles = StyleSheet.create({
   debugLabel: { fontSize: 12, color: '#34495e', marginBottom: 8, fontStyle: 'italic', fontWeight: 'bold' },
   debugImage: { width: 250, height: 200, borderRadius: 8, backgroundColor: '#000' }
 });
+
+
+
+//https://vscode.dev/github/aalizahasan/Sign_Language_Translator_App/blob/main/ai-backend/datasets/my_videos
